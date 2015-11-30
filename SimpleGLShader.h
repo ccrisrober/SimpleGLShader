@@ -17,37 +17,43 @@
 #ifndef _SIMPLEGLSHADER_H_
 #define _SIMPLEGLSHADER_H_
 
-#define MAX_SHADERS 2
+//#define MAX_SHADERS 2
 
 #include <GL/glew.h>
 #include <map>
 #include <string>
+#include <vector>
 
 class SimpleGLShader {
 public:
 	SimpleGLShader(void);
 	~SimpleGLShader(void);
 
-	void load_from_source(const std::string& source, GLenum shader_type);
-	void load_from_file(const std::string& file, GLenum shader_type);
+	void destroy();
 
-	void create_and_link();
+	void load(const std::string& file, GLenum type);
+
+	void create();
+	void link();
 	void use();
 	void unuse();
+
+	GLuint program() {
+		return mProgram;
+	}
 
 	void add_attribute(const std::string& attr);
 	void add_uniform(const std::string& uniform);
 
 	GLuint attribute(const std::string& attr);
 	GLuint uniform(const std::string& uniform);
-
 private:
 	GLuint mProgram;
 	int mTotalShaders;
 	std::map<std::string, GLuint> mAttrsList;
 	std::map<std::string, GLuint> mUniformList;
 	enum ShaderType {V_SHADER, F_SHADER};
-	GLuint mShaders[MAX_SHADERS];
+	std::vector<GLuint> mShaders;
 };
 
 #endif /* _SIMPLEGLSHADER_H_ */

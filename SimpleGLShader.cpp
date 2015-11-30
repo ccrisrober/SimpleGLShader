@@ -2,6 +2,54 @@
 #include <fstream>
 #include <iostream>
 
+void SimpleGLShader::load(const std::string& fileName, GLenum type) {
+	unsigned int fileLen;
+
+	// Load file
+	std::ifstream file;
+	file.open(fileName, std::ios::in);
+	if (!file) exit(-1);
+
+	// File length
+	file.seekg(0, std::ios::end);
+	fileLen = unsigned int(file.tellg());
+	file.seekg(std::ios::beg);
+
+	// Read the file
+	char *source = new char[fileLen + 1];
+
+	int i = 0;
+	while (file.good()) {
+		source[i] = char(file.get());
+		if (!file.eof()) i++;
+		else fileLen = i;
+	}
+	source[fileLen] = '\0';
+	file.close();
+
+	// Create and compile shader
+	GLuint shader;
+	shader = glCreateShader(type);
+	glShaderSource(shader, 1, (const GLchar **) &source, (const GLint *) &fileLen);
+
+	GLint status;
+	glCompileShader(shader);
+	glGetShaderiv (shader, GL_COMPILE_STATUS, &status);
+	if (status == GL_FALSE) {
+		GLint infoLogLength;		
+		glGetShaderiv (shader, GL_INFO_LOG_LENGTH, &infoLogLength);
+		GLchar *infoLog= new GLchar[infoLogLength];
+		glGetShaderInfoLog (shader, infoLogLength, NULL, infoLog);
+		std::cerr << "Compile log ("<< fileName << "): " << infoLog << std::endl;
+		delete [] infoLog;
+		return;
+	}
+	delete source;
+
+	// Add to shaders in use
+	mShaders.push_back(shader);
+}
+
 SimpleGLShader::SimpleGLShader(void) : mTotalShaders(0) {
 	mAttrsList.clear();
 	mUniformList.clear();
@@ -10,7 +58,22 @@ SimpleGLShader::SimpleGLShader(void) : mTotalShaders(0) {
 SimpleGLShader::~SimpleGLShader(void) {
 	mAttrsList.clear();
 	mUniformList.clear();
-	for(int i = 0; i < MAX_SHADERS; i++) {
+	/*
+	GLuint size = mShaders.size();
+	for(int i = 0; i < size; i++) {
+		if(mShaders[i] != 0) {
+			glDetachShader(mProgram, mShaders[i]);
+		}
+	}
+	glDeleteProgram(mProgram);
+	*/
+}
+
+void SimpleGLShader::destroy() {
+	mAttrsList.clear();
+	mUniformList.clear();
+	GLuint size = mShaders.size();
+	for(int i = 0; i < size; i++) {
 		if(mShaders[i] != 0) {
 			glDetachShader(mProgram, mShaders[i]);
 		}
@@ -18,54 +81,29 @@ SimpleGLShader::~SimpleGLShader(void) {
 	glDeleteProgram(mProgram);
 }
 
-void SimpleGLShader::load_from_source(const std::string& source, GLenum shader_type) {
-	GLuint shader = glCreateShader(shader_type);
-
-	const char *code = source.c_str();
-	glShaderSource(shader, 1, &code, (const GLint*)source.length());
-}
-
-void SimpleGLShader::load_from_file(const std::string& file, GLenum shader_type) {
-	std::ifstream ifs;
-	ifs.open(file.c_str(), std::ios_base::in);
-
-	if(!ifs.good()) throw;
-
-	std::string line, bff = "";
-	while(std::getline(ifs, line)) {
-		bff += line + "\r\n";
-	}
-
-	load_from_source(bff, shader_type);
-}
-
-void SimpleGLShader::create_and_link() {
+void SimpleGLShader::create() {
 	mProgram = glCreateProgram();
-	for(int i = 0; i < MAX_SHADERS; i++) {
+	GLuint size = mShaders.size();
+	for(int i = 0; i < size; i++) {
 		if(mShaders[i] != 0) {
 			glAttachShader(mProgram, mShaders[i]);
 		}
 	}
+}
 
-	// Link and check status
-	GLint compiled_status;
-	for(int i = 0; i < MAX_SHADERS; i++) {
-		if(mShaders[i] != 0) {
-			glGetShaderiv(mShaders[i], GL_COMPILE_STATUS, & compiled_status);
-			if(compiled_status == GL_FALSE) {
-				// Get errors
-				GLint logLen;
-				glGetShaderiv(mShaders[i], GL_INFO_LOG_LENGTH, &logLen);
-
-				char *logStr = new char[logLen];
-				glGetShaderInfoLog(mShaders[i], logLen, NULL, logStr);
-				std::cerr << "Error: " << logStr << std::endl;
-				delete logStr;
-
-				glDeleteShader(mShaders[i]);
-				throw;
-			}
-		}
+void SimpleGLShader::link() {
+	// link and check whether the program links fine
+	GLint status;
+	glLinkProgram (mProgram);
+	glGetProgramiv (mProgram, GL_LINK_STATUS, &status);
+	if (status == GL_FALSE) {
+		GLint infoLogLength;
+		
+		glGetProgramiv (mProgram, GL_INFO_LOG_LENGTH, &infoLogLength);
+		GLchar *infoLog = new GLchar[infoLogLength];
+		glGetProgramInfoLog (mProgram, infoLogLength, NULL, infoLog);
+		std::cerr << "Link log: " << infoLog << std::endl;
+		delete [] infoLog;
 	}
 }
 
@@ -76,7 +114,6 @@ void SimpleGLShader::use() {
 void SimpleGLShader::unuse() {
 	glUseProgram(NULL);
 }
-
 
 void SimpleGLShader::add_attribute(const std::string& attr) {
 	mAttrsList[attr] = glGetAttribLocation(mProgram, attr.c_str());
