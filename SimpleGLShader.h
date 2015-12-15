@@ -17,8 +17,6 @@
 #ifndef _SIMPLEGLSHADER_H_
 #define _SIMPLEGLSHADER_H_
 
-//#define MAX_SHADERS 2
-
 #include <GL/glew.h>
 #include <map>
 #include <string>
@@ -43,10 +41,18 @@ public:
 	}
 
 	void add_attribute(const std::string& attr);
+	void bind_attribute(const std::string& attr, GLuint index);
 	void add_uniform(const std::string& uniform);
 
 	GLuint attribute(const std::string& attr);
 	GLuint uniform(const std::string& uniform);
+
+	void send_uniform_4fv(const std::string& unif_name, GLsizei count, GLboolean transpose, const GLfloat *value) {
+		GLuint idx = uniform(unif_name);
+		if(idx != -1) {
+			glUniformMatrix4fv(idx, count, transpose, value);
+		}
+	}
 private:
 	GLuint mProgram;
 	int mTotalShaders;

@@ -123,6 +123,10 @@ void SimpleGLShader::add_uniform(const std::string& uniform) {
 	mUniformList[uniform] = glGetUniformLocation(mProgram, uniform.c_str());
 }
 
+void SimpleGLShader::bind_attribute(const std::string& attr, GLuint index) {
+	glBindAttribLocation(mProgram, index, attr.c_str());
+}
+
 GLuint SimpleGLShader::attribute(const std::string& attr) {
 	return mAttrsList[attr];
 }
